@@ -1,0 +1,55 @@
+services:
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: iasw
+      POSTGRES_PASSWORD: iasw
+      POSTGRES_DB: iasw
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iasw"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend (FastAPI) ────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DB_TYPE: postgres
+      DATABASE_URL: postgresql+asyncpg://iasw:iasw@postgres:5432/iasw
+      FILENET_STORE_PATH: /app/filenet_store
+      LOG_FILE: /app/logs/iasw.log
+    volumes:
+      - filenet_store:/app/filenet_store
+      - backend_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── Frontend (Next.js) ──────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://backend:8000
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  filenet_store:
+  backend_logs:

@@ -1,0 +1,97 @@
+```mermaid
+flowchart TD
+    subgraph Browser["Staff Browser"]
+        FE_Intake["Intake Form\n(page.tsx)"]
+        FE_Tracker["Request Tracker\n(requests/[id])"]
+        FE_Checker["Checker UI\n(checker/[id])"]
+    end
+
+    subgraph API["FastAPI Backend :8000"]
+        R_Create["POST /api/v1/requests"]
+        R_Upload["POST /api/v1/requests/{id}/documents\n↳ returns 202 immediately"]
+        R_Status["GET /api/v1/requests/{id}"]
+        R_Pending["GET /api/v1/checker/pending"]
+        R_Detail["GET /api/v1/checker/requests/{id}"]
+        R_Approve["POST /checker/requests/{id}/approve\n⚠️ HITL GATE"]
+        R_Reject["POST /checker/requests/{id}/reject"]
+    end
+
+    subgraph Pipeline["Async Background Thread (LangGraph)"]
+        N1["validation_agent\nRPS lookup + field match"]
+        N2["document_processor\nOCR + LLM extraction\n+ forgery heuristic"]
+        N3["confidence_scorer\nfuzzy + semantic scoring\nper-field confidence"]
+        N4["summary_generator\nLLM → checker summary\n+ recommendation"]
+        COND{"validation\nerrors?"}
+    end
+
+    subgraph Services["Services"]
+        OCR["OCR Service\nPyMuPDF → Tesseract → Textract"]
+        LLM["LLM Service\nOllama (local) / GPT-4o (cloud)"]
+        RPS["Mock RPS\nwrite gated by\nchecker_decision_id"]
+        FN["FileNet Mock\nfilenet_store/"]
+    end
+
+    subgraph Storage["Storage"]
+        DB[("SQLite / PostgreSQL\n4 tables")]
+        FS[("filenet_store/\narchived documents")]
+    end
+
+    subgraph Observability["Observability"]
+        LOG["Loguru\nfile + console\n(always-on)"]
+        LANGFUSE["Langfuse\nLLM tracing\n(optional)"]
+    end
+
+    %% Frontend → API (sync)
+    FE_Intake -->|"POST (sync)"| R_Create
+    FE_Intake -->|"POST (sync) → 202"| R_Upload
+    FE_Tracker -->|"GET (poll)"| R_Status
+    FE_Checker -->|"GET (sync)"| R_Pending
+    FE_Checker -->|"GET (sync)"| R_Detail
+    FE_Checker -->|"POST (sync)"| R_Approve
+    FE_Checker -->|"POST (sync)"| R_Reject
+
+    %% Upload triggers async pipeline
+    R_Upload -->|"async thread"| N1
+    R_Upload -->|"archive"| FN
+    FN --> FS
+
+    %% Pipeline flow
+    N1 --> COND
+    COND -->|"no errors"| N2
+    COND -->|"validation\nfailed"| N4
+    N2 --> N3
+    N3 --> N4
+
+    %% Node dependencies on services
+    N1 -->|"lookup"| RPS
+    N2 -->|"extract text"| OCR
+    N2 -->|"parse fields\nforgery check"| LLM
+    N3 -->|"semantic scoring"| LLM
+    N4 -->|"generate summary"| LLM
+
+    %% Pipeline → DB
+    N4 -->|"write verification_result\nstatus=AI_VERIFIED_PENDING_HUMAN"| DB
+
+    %% Checker approval → RPS write (HITL gate)
+    R_Approve -->|"1. create checker_decision"| DB
+    R_Approve -->|"2. write_customer_record\n(checker_decision_id required)"| RPS
+    R_Approve -->|"3. status=APPROVED"| DB
+    R_Reject -->|"status=REJECTED\nno RPS write"| DB
+
+    %% DB reads
+    R_Status -->|"read"| DB
+    R_Pending -->|"read"| DB
+    R_Detail -->|"read"| DB
+
+    %% Observability
+    Pipeline --> LOG
+    API --> LOG
+    LLM -.->|"optional"| LANGFUSE
+
+    %% Styling
+    style R_Approve fill:#dc2626,color:#fff,stroke:#991b1b
+    style COND fill:#fbbf24,color:#000
+    style Pipeline fill:#eff6ff,stroke:#3b82f6
+    style Browser fill:#f0fdf4,stroke:#16a34a
+    style Observability fill:#fdf4ff,stroke:#a855f7
+```

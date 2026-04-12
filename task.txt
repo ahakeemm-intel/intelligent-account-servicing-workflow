@@ -1,0 +1,116 @@
+Technical Challenge: Intelligent Account Servicing Workflow (IASW)
+_______________________________________
+Overview
+You are tasked with designing and prototyping an Intelligent Account Servicing Workflow (IASW) — an agentic AI application that automates document verification and data validation for core banking account change requests, while maintaining a strict Human-in-the-Loop (HITL) Checker requirement before any update is committed to the core system.
+This challenge assesses your ability to architect production-grade agentic systems, balance automation with human oversight, and demonstrate product-oriented thinking in an enterprise-regulated context.
+
+Submission deadline: 5 days from receipt
+Submission format: GitHub repository + Solution Design and Implementation document (Word, PDF or Markdown)
+________________________________________
+Problem Statement
+Banks and financial institutions process thousands of customer account change requests daily — name changes, address updates, date of birth corrections, and contact detail modifications. The current manual process involves:
+•	Staff manually entering and validating change requests
+•	Physical or scanned document review by a Maker
+•	A Checker supervisor re-verifying the Maker's work before submission
+•	Manual archival of documents into document management systems
+This process is slow, error-prone, and costly. The goal of IASW is to replace the manual Maker role with an AI agent while preserving the human Checker as the final decision authority — ensuring regulatory compliance and accountability.
+Core constraint: The AI must never perform the final write-call to the core banking system (RPS) autonomously. Every approval must be explicitly triggered by a human Checker.
+________________________________________
+
+System Context
+Supported Change Types
+Change Type	Required Documents	AI Verification Task
+Legal Name	Marriage Certificate, Gazette Notification, or Deed Poll	Match "Old Name" + event context to "New Name"
+Address	Utility Bill, Lease Agreement, or Govt ID	Extract address string; verify via Maps API / GIS
+Date of Birth	Birth Certificate, Passport, or PAN Card	Verify date format and document authenticity
+Contact / Email	Digital Consent Form	Verify signature match via AI biometrics
+Workflow Phases
+Step 1 — Initiation & AI-Augmented Intake 
+Staff enters a change request via the frontend. A Validation Agent scans the input against RPS records. The customer uploads supporting documents. A GenAI Document Processor performs OCR extraction, cross-references data against the requested change, runs forgery detection, and auto-archives documents to FileNet with generated metadata.
+Step 2 — Automated Verification (Digital Maker) 
+The AI Agent produces a Confidence Score Card per document (e.g., 99% for a clean name match; 40% for a blurry address proof flagged for human correction). Data is staged in a relational DB Pending Table with status AI_VERIFIED_PENDING_HUMAN.
+Step 3 — Human-in-the-Loop Checker A Checker Supervisor reviews a Review screen with an AI-generated summary, recommended action (approve/reject). The Checker clicks Approve or Reject. Upon approval, a microservice triggers the update to RPS and the relational DB.
+________________________________________
+
+Expected Deliverables
+1. Sample Prototype (Working Code)
+Build a minimal but functional end-to-end prototype demonstrating at least one complete change request flow (recommended: Legal Name Change). The prototype must include:
+•	A simple frontend intake form (staff submits a name change request + uploads a document)
+•	A backend agent pipeline that: 
+o	Accepts the document and runs OCR / LLM-based data extraction
+o	Performs a cross-reference check between extracted data and the requested change
+o	Generates a Confidence Score Card with a pass/flag/fail result per field
+o	Stages the result to a Pending Table with status AI_VERIFIED_PENDING_HUMAN
+•	A Checker Review UI showing the AI summary, confidence scores, FileNet reference, and Approve / Reject buttons
+•	A mock RPS write-call that only executes upon human Checker approval
+•	Basic observability: log each agent step, confidence score, and human decision
+Minimum viable scope: One change type, one document type, one working flow from intake to Checker approval. 
+________________________________________
+
+2. Application Design
+Submit a design document (can be within this report or a separate diagram) covering:
+
+2a. System Architecture Diagram Show all components: frontend, intake agent, document processor, confidence scorer, pending table, Checker UI, RPS microservice, FileNet mock, and observability layer. Indicate synchronous vs. asynchronous boundaries.
+
+2b. Agent Design Describe each agent in your system:
+Component | Responsibility | Input | Output
+Validation Agent | Validate intake fields against RPS + document forgery check | Change request form | Field-level validation result
+Document Processor Agent | OCR + extraction | Uploaded document | Extracted fields + forgery flag
+Confidence Scorer | Score each field match | Extracted fields + request data | Confidence Score Card
+Summary Agent | Generate human-readable review summary | Score card + document metadata | Natural language summary + recommended action
+
+2c. HITL (human in the loop) Boundary Design Clearly define what the AI can and cannot do autonomously. Describe how you enforce the HITL constraint.
+2d. Data Model Describe the schema for the Pending Table. Include: request ID, change type, requested value, extracted value, confidence score per field, overall status, FileNet reference ID, Checker decision, and timestamps.
+________________________________________
+3. One Working Flow (Demonstrated End-to-End)
+
+Demonstrate the Legal Name Change flow end-to-end in your prototype:
+1.	Staff submits: Customer ID C001, Old Name: Priya Sharma, New Name: Priya Mehta, uploads a Marriage Certificate PDF/image
+2.	Document Processor extracts: Bride Name: Priya Sharma, Married Name: Priya Mehta
+3.	Confidence Scorer outputs: Name match → 97%, Document authenticity → 85%, Forgery check → Pass
+4.	Pending Table record created with status AI_VERIFIED_PENDING_HUMAN
+5.	Checker UI displays AI summary: "Marriage Certificate verified. Old name matches bride field. New name matches married name field. Confidence: 97%. Recommended: Approve."
+6.	Checker clicks Approve → mock RPS write-call executes → status updated to APPROVED
+________________________________________
+4. Technical Stack
+Propose and justify your chosen stack. The table below is a reference — you may substitute with equivalent tools and must justify any deviation.
+Layer	Suggested Options	Justify Your Choice
+Frontend	React / Next.js	—
+Backend / API	FastAPI / Node.js	—
+Orchestration Framework	LangChain, LlamaIndex, LangGraph, CrewAI	—
+LLM	GPT-4o, Claude 3.5, Gemini 1.5 Pro	—
+OCR	AWS Textract, Google Document AI, Tesseract	—
+Vector Store (if used)	Pinecone, pgvector, Chroma	—
+Relational DB	PostgreSQL / MySQL	—
+Document Store (mock)	Local filesystem or S3 mock (stand-in for FileNet)	—
+Observability	LangSmith, Langfuse, or custom logging	—
+
+In your report, include a short paragraph explaining why you chose your orchestration framework and LLM, and any trade-offs considered.
+________________________________________
+Evaluation Scorecard
+Your submission will be scored across five dimensions:
+Dimension	Weight	What We Look For
+System Design	25%	Clarity of architecture,  agent decomposition
+Working Prototype	25%	Functional flow, code quality, error handling
+AI/ML Depth	20%	Confidence scoring, forgery detection, prompt design
+Product Thinking	20%	Trade-off reasoning, edge case awareness
+Observability & Ops	10%	Logging,  auditability
+________________________________________
+Submission Checklist
+•	[ ] Solution Design and Implementation document which consist of below sections – 
+o	Executive Summary
+o	Problem Understanding & Scope
+o	Solution Architecture
+o	Agent Design & Prompt Engineering
+o	Assumptions, Constraints & Known Limitations
+•	[ ] GitHub repo link (public or shared access)
+•	[ ] README.md with setup instructions and how to run the working flow
+•	[ ] Architecture diagram (image or draw.io / Mermaid embedded)
+________________________________________
+Notes for Candidates
+•	You are not expected to integrate with a real FileNet or RPS system. Mocks and stubs are acceptable and expected.
+•	Prioritise demonstrating depth over breadth — one well-implemented flow is valued over five shallow ones.
+•	Show your thinking in code comments and in the report. We want to understand your reasoning, not just your output.
+•	If you make a simplifying assumption, state it explicitly. 
+________________________________________
+

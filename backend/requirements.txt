@@ -1,0 +1,38 @@
+# Web framework
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+
+# Settings
+pydantic-settings==2.4.0
+pydantic==2.9.2
+
+# Database
+sqlalchemy==2.0.35
+aiosqlite==0.20.0          # SQLite async driver (local mode)
+asyncpg==0.29.0            # PostgreSQL async driver (cloud/docker mode)
+alembic==1.13.3
+
+# LangChain + LangGraph
+langchain==0.3.1
+langchain-core==0.3.6
+langchain-community==0.3.1
+langchain-openai==0.2.2
+langchain-ollama==0.2.0
+langgraph==0.2.28
+
+# OCR — Tesseract (local)
+pytesseract==0.3.13
+Pillow==10.4.0
+pymupdf==1.24.10            # PDF page rendering for Tesseract
+
+# AWS — Textract (cloud)
+boto3==1.35.28
+
+# String matching for confidence scorer
+rapidfuzz==3.10.0
+
+# Logging
+loguru==0.7.2
+
+# File upload handling
+python-multipart==0.0.12
