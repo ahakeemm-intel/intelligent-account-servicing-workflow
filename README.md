@@ -4,7 +4,7 @@ An agentic AI prototype that automates document verification for banking account
 
 ---
 
-## Quick Start (Local — Zero API Keys)
+## Quick Start (Local)
 
 ### Prerequisites
 
